@@ -1,4 +1,5 @@
 import os
+import asyncio
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -67,17 +68,22 @@ async def generate(request: GenerateRequest):
     if not request.prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
-    if not openai.api_key:
-        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-
-    system_message = build_system_message(request.tone, request.platform)
+    if not openai.api_key or openai.api_key == "":
+        # Demo mode - return sample content if no API key
+        async def demo_generator():
+            sample_response = f"✨ Demo Mode (No OpenAI Key)\n\nYour prompt: '{request.prompt}'\nPlatform: {request.platform}\nTone: {request.tone}\n\n📝 In production, this would be AI-generated content from OpenAI.\n\n💡 To enable AI generation:\n1. Get API key: https://platform.openai.com/account/api-keys\n2. Edit backend/.env with your key\n3. Restart the backend\n\nThis demo mode allows you to test the UI without an API key!"
+            for char in sample_response:
+                yield char
+                await asyncio.sleep(0.01)  # Simulate streaming
+        
+        return StreamingResponse(demo_generator(), media_type="text/plain")
 
     try:
         # Create streaming response
         stream = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": system_message},
+                {"role": "system", "content": build_system_message(request.tone, request.platform)},
                 {"role": "user", "content": request.prompt},
             ],
             stream=True,
