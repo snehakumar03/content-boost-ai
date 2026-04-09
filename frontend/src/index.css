@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism Background */
+.glassmorphic-bg {
+  @apply fixed inset-0 bg-gradient-to-br from-purple-dark via-navy-dark to-navy-dark;
+  z-index: 0;
+}
+
+/* Animated Glow Orbs */
+.glow-orb {
+  @apply absolute rounded-full blur-3xl opacity-40 pointer-events-none;
+}
+
+.glow-orb-purple {
+  @apply bg-gradient-to-r from-purple-500 to-pink-500;
+  animation: float 6s ease-in-out infinite;
+}
+
+.glow-orb-blue {
+  @apply bg-gradient-to-r from-blue-500 to-cyan-500;
+  animation: float 8s ease-in-out infinite reverse;
+}
+
+/* Glassmorphic Container */
+.glass-card {
+  @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl;
+}
+
+.glass-card-hover {
+  @apply transition-all duration-300 hover:bg-white/15 hover:border-white/30;
+}
+
+.glass-input {
+  @apply w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/50 focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all;
+}
+
+.glass-dropdown {
+  @apply w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all appearance-none cursor-pointer;
+}
+
+.glass-dropdown option {
+  @apply bg-navy-dark text-white;
+}
+
+/* Gradient Button */
+.btn-gradient {
+  @apply bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/50;
+}
+
+.btn-gradient-lg {
+  @apply bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-bold px-8 py-4 rounded-lg transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/50;
+}
+
+/* Platform Pills */
+.platform-pill {
+  @apply px-4 py-2 rounded-full border border-white/20 text-white/70 cursor-pointer transition-all duration-300;
+}
+
+.platform-pill.active {
+  @apply bg-purple-500/30 border-purple-400/50 text-white;
+}
+
+/* Content Container */
+.content-wrapper {
+  @apply relative z-10;
+}
+
+/* Animation Utilities */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.8);
+  }
+}
+
+/* Copy Button Animation */
+.copy-success {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
