@@ -2,12 +2,20 @@ import os
 import asyncio
 import logging
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI, RateLimitError, AuthenticationError
+from sqlalchemy.orm import Session
 import json
+
+# Import database and models
+from database import engine, Base, get_db
+from models import User, OAuthAccount, RateLimit
+from routers import auth_router, oauth_router
+from services.rate_limit_service import RateLimitService
+from dependencies.auth import get_current_user_optional
 
 # Load environment variables
 load_dotenv()
@@ -19,6 +27,13 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="ContentBoost AI Backend", version="1.0.0")
 
+# Create database tables on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on application startup."""
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created successfully")
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +43,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI client
+# Include routers
+app.include_router(auth_router)
+app.include_router(oauth_router)
+
+# Initialize services
+rate_limit_service = RateLimitService()
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Request model
@@ -65,11 +85,32 @@ async def health_check():
     return {"status": "ok", "message": "ContentBoost AI Backend is running"}
 
 @app.post("/generate")
-async def generate(request: GenerateRequest):
+async def generate(
+    request: GenerateRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user_optional)
+):
     """
     Generate content using OpenAI API with streaming.
     Returns a streaming response with the content appearing letter-by-letter.
+
+    Rate limiting:
+    - Unauthenticated users: 5 generations per day
+    - Authenticated users: Unlimited
     """
+    # Get IP address and user ID for rate limiting
+    ip_address = http_request.client.host
+    user_id = current_user.id if current_user else None
+
+    # Check rate limits
+    can_proceed, current_count, daily_limit = rate_limit_service.check_rate_limit(user_id, ip_address)
+
+    if not can_proceed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. You've used {current_count}/{daily_limit} generations today. Sign up for unlimited access!"
+        )
+
     logger.info(f"Received generate request: prompt='{request.prompt}', tone='{request.tone}', platform='{request.platform}'")
     
     if not request.prompt:
@@ -81,6 +122,8 @@ async def generate(request: GenerateRequest):
         logger.info("No OpenAI API key found, using demo mode")
         # Demo mode - return sample content if no API key
         async def demo_generator():
+            # Increment rate limit counter
+            rate_limit_service.increment_rate_limit(user_id, ip_address)
             sample_response = f"✨ Demo Mode (No OpenAI Key)\n\nYour prompt: '{request.prompt}'\nPlatform: {request.platform}\nTone: {request.tone}\n\n📝 In production, this would be AI-generated content from OpenAI.\n\n💡 To enable AI generation:\n1. Get API key: https://platform.openai.com/account/api-keys\n2. Edit backend/.env with your key\n3. Restart the backend\n\nThis demo mode allows you to test the UI without an API key!"
             for char in sample_response:
                 yield char
@@ -104,6 +147,8 @@ async def generate(request: GenerateRequest):
 
         async def generate_content():
             """Generator function to stream content."""
+            # Increment rate limit counter (first chunk)
+            rate_limit_service.increment_rate_limit(user_id, ip_address)
             try:
                 for chunk in stream:
                     if chunk.choices:
